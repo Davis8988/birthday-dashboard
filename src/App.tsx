@@ -28,7 +28,7 @@ interface Birthday {
 
 function App() {
   // const [isLoggedIn, setIsLoggedIn] = useState(false);  // <-- This opensup firebase login page
-  const isLoggedIn = true;
+  const isLoggedIn = true; // TODO: Make a simple login
   const [currentView, setCurrentView] = useState("Dashboard");
   const [birthdays, setBirthdays] = useState<Birthday[]>([]);
   const [person, setPerson] = useState({
