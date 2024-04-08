@@ -61,7 +61,6 @@ function App() {
   };
 
   const getBirthdayList = async () => {
-    setIsLoggedIn(true);
     try {
       const data = await getDocs(
         query(
@@ -83,18 +82,6 @@ function App() {
   useEffect(() => {
     auth.currentUser != null && getBirthdayList();
   }, [isLoggedIn]);
-
-  useEffect(() => {
-    const listen = onAuthStateChanged(auth, (user) => {
-      user == null ? setBirthdays([]) : getBirthdayList();
-      user == null ? setIsLoggedIn(false) : setIsLoggedIn(true);
-      setCurrentView("Dashboard");
-    });
-
-    return () => {
-      listen();
-    };
-  }, []);
 
   return (
     <>
