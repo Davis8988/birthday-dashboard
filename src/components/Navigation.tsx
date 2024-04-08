@@ -27,21 +27,6 @@ const Navigation = ({ currentView, onSelectView, loggedIn }: Props) => {
             >
               Dashboard
             </button>
-            <button
-              className={
-                currentView === "Configuration" ? "nav-link active" : "nav-link"
-              }
-              id="nav-profile-tab"
-              data-bs-toggle="tab"
-              data-bs-target="#nav-profile"
-              type="button"
-              role="tab"
-              aria-controls="nav-profile"
-              aria-selected="false"
-              onClick={() => onSelectView("Configuration")}
-            >
-              Edit Birthdays
-            </button>
           </div>
         </nav>
       </>
