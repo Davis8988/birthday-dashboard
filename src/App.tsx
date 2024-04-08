@@ -16,8 +16,6 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import { auth, db } from "./firebase";
-import { onAuthStateChanged } from "firebase/auth";
-import UpdateUser from "./components/auth/UpdateUser";
 
 interface Birthday {
   id: string;
