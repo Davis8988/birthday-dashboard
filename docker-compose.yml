@@ -1,5 +1,13 @@
 version: '2.0'
 
+# If getting an error: TypeError: kwargs_from_env() got an unexpected keyword argument 'ssl_version' in GitLab
+#  Then solution is here: https://stackoverflow.com/questions/77641240/getting-docker-compose-typeerror-kwargs-from-env-got-an-unexpected-keyword-ar
+# I got it to work by reverting the suggested change in the utils.py i.e. sudo nano ./usr/local/lib/python3.9/dist-packages/docker/utils/utils.py
+#
+# Finding: def kwargs_from_env(environment=None):(See file docker/utils/utils.py line 344)
+#
+# and adding: def kwargs_from_env(environment=None, ssl_version=None)
+
 networks:
   birthdays-page-net:
     driver: bridge
