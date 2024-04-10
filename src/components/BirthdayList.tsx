@@ -9,25 +9,15 @@ interface Birthday {
 
 interface Props {
   birthdays: Birthday[];
-  onDelete: (id: string) => void;
-  onSave: (id: string, newData: Partial<Birthday>) => void;
+  // onDelete: (id: string) => void;
+  // onSave: (id: string, newData: Partial<Birthday>) => void;
 }
 
-const BirthdayList = ({ birthdays, onDelete, onSave }: Props) => {
+const BirthdayList = ({ birthdays }: Props) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editedName, setEditedName] = useState("");
   const [editedDate, setEditedDate] = useState("");
 
-  const handleEdit = (id: string, name: string, date: string) => {
-    setEditingId(id);
-    setEditedName(name);
-    setEditedDate(date);
-  };
-
-  const handleSave = (id: string) => {
-    onSave(id, { personName: editedName, date: editedDate });
-    setEditingId(null);
-  };
 
   return (
     <div>
@@ -36,8 +26,6 @@ const BirthdayList = ({ birthdays, onDelete, onSave }: Props) => {
           <tr>
             <th>Name</th>
             <th>Birthday</th>
-            <th></th>
-            <th></th>
           </tr>
         </thead>
         <tbody>
@@ -62,39 +50,9 @@ const BirthdayList = ({ birthdays, onDelete, onSave }: Props) => {
                       value={editedDate}
                       onChange={(e) => setEditedDate(e.target.value)}
                     />
-                    <button
-                      onClick={() => handleSave(birthday.id)}
-                      className="btn btn-success mx-3"
-                    >
-                      Update
-                    </button>
                   </>
                 ) : (
-                  moment(birthday.date).format("L")
-                )}
-              </td>
-              <td>
-                <button
-                  onClick={() => onDelete(birthday.id)}
-                  className="btn btn-danger"
-                >
-                  Delete
-                </button>
-              </td>
-              <td>
-                {editingId !== birthday.id && (
-                  <button
-                    onClick={() =>
-                      handleEdit(
-                        birthday.id,
-                        birthday.personName,
-                        birthday.date
-                      )
-                    }
-                    className="btn btn-warning"
-                  >
-                    Edit
-                  </button>
+                  moment(birthday.date).format("Do [of] MMMM")
                 )}
               </td>
             </tr>

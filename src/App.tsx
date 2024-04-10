@@ -2,20 +2,9 @@ import { FormEvent, useEffect, useState } from "react";
 import "./App.css";
 import Navigation from "./components/Navigation";
 import Dashboard from "./components/Dashboard";
-import { formattedDate } from "./components/CurrentTime";
 import BirthdayList from "./components/BirthdayList";
 import BirthdayForm from "./components/BirthdayForm";
-import {
-  addDoc,
-  deleteDoc,
-  collection,
-  getDocs,
-  doc,
-  query,
-  where,
-  updateDoc,
-} from "firebase/firestore";
-import { auth, db } from "./firebase";
+import UpdateData from "./components/UpdateData";
 
 interface Birthday {
   id: string;
@@ -24,7 +13,6 @@ interface Birthday {
 }
 
 function App() {
-  // const [isLoggedIn, setIsLoggedIn] = useState(false);  // <-- This opensup firebase login page
   const isLoggedIn = true; // TODO: Make a simple login
   const [currentView, setCurrentView] = useState("Dashboard");
   const [birthdays, setBirthdays] = useState<Birthday[]>([]);
@@ -32,52 +20,54 @@ function App() {
     name: "",
     date: "",
   });
-  const birthdayCollectionRef = collection(db, "birthdays");
-
-  const handleSubmit = async (event: FormEvent) => {
-    event.preventDefault();
-    await addDoc(birthdayCollectionRef, {
-      personName: person.name,
-      date: person.date,
-      createdById: auth?.currentUser?.uid,
-    });
-    getBirthdayList();
-    setPerson({ name: "", date: "" }); // Reset the person object
-  };
-
-  const handleDelete = async (id: string) => {
-    const birthdayDoc = doc(db, "birthdays", id);
-    await deleteDoc(birthdayDoc);
-    getBirthdayList();
-  };
-
-  const handleEdit = async (id: string, newData: Partial<Birthday>) => {
-    const birthdayDoc = doc(db, "birthdays", id);
-    await updateDoc(birthdayDoc, newData);
-    getBirthdayList();
-  };
 
   const getBirthdayList = async () => {
-    try {
-      const data = await getDocs(
-        query(
-          birthdayCollectionRef,
-          where("createdById", "==", auth.currentUser?.uid)
-        )
-      );
-      const filteredData = data.docs.map((doc) => ({
-        ...doc.data(),
-        id: doc.id,
-      })) as Birthday[];
-      console.log({ filteredData });
-      setBirthdays(filteredData);
-    } catch (err) {
-      console.error(err);
-    }
+      console.log("Attempting to read file: birthdays.csv");
+      try {
+        // Read the contents of the CSV file
+        fetch("birthdays.csv")
+        .then((res) => res.text())
+        .then((csvData) => {
+          // Convert CSV data to an array of objects (assuming CSV structure)
+          const lines = csvData.split('\n');
+          console.log("lines");
+          console.log(lines);
+          const headers = lines[0].split(',');  // <-- Assuming first line is the headers
+          
+          const birthdays: Birthday[] = [];
+          for (let i = 1; i < lines.length; i++) {
+              var line = lines[i]
+              if (! line) {continue}
+              line = line.trim()
+              if (! line) {continue}
+              if ("#" === line[0]) {continue}  // <-- Skip comment lines
+              const values = lines[i].split(',');
+              const birthday: Birthday = {} as Birthday;
+              for (let j = 0; j < headers.length; j++) {
+                var valueToSet = values[j]
+                if (! valueToSet) {
+                  console.warn("Skipping null/empty value at index: " + j)
+                  continue
+                }
+                birthday[headers[j].trim() as keyof Birthday] = valueToSet.trim();
+              }
+              birthdays.push(birthday);
+          }
+
+          console.log({ birthdays });
+          // Set birthdays state or perform further processing
+          setBirthdays(birthdays);
+        })
+        .catch((e) => console.error(e));
+        
+          
+      } catch (err) {
+          console.error(err);
+      }
   };
 
   useEffect(() => {
-    auth.currentUser != null && getBirthdayList();
+    getBirthdayList();
   }, [isLoggedIn]);
 
   return (
@@ -91,21 +81,12 @@ function App() {
         <>
           <div className="birthday-form">
             <BirthdayForm
-              today={formattedDate}
-              handleSubmit={handleSubmit}
-              person={person}
-              setPerson={(e: React.ChangeEvent<HTMLInputElement>) => {
-                const { name, value } = e.target;
-                setPerson((prev) => ({ ...prev, [name]: value }));
-              }}
             />
           </div>
           <div className="birthdayList">
             {birthdays.length > 0 && (
               <BirthdayList
                 birthdays={birthdays}
-                onDelete={handleDelete}
-                onSave={handleEdit}
               />
             )}
           </div>
@@ -113,6 +94,11 @@ function App() {
       )}
       {currentView === "Dashboard" && (
         <Dashboard loggedIn={isLoggedIn} birthdays={birthdays} />
+      )}
+      {currentView === "UpdateData" && (
+        <>
+          <UpdateData />
+        </>
       )}
     </>
   );
