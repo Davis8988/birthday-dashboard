@@ -1,4 +1,4 @@
-version: '3'
+version: '2.0'
 
 networks:
   birthdays-page-net:
