@@ -12,13 +12,12 @@ interface Birthday {
   date: string;
 }
 
-// Read switch view interval duration from environment variable or default to 60000 milliseconds (1 minute)
-const switchIntervalDuration = import.meta.env.VITE_BIRTHDAYS_PAGE_SWITCH_VIEW_INTERVAL_MILLISECONDS || 60000;
+// Global Vars
+const switchIntervalDuration       = import.meta.env.VITE_BIRTHDAYS_PAGE_SWITCH_VIEW_INTERVAL_MILLISECONDS   || 60000;  // Read switch view interval duration from environment variable or default to 60000 milliseconds (1 minute)
+const reloadDataIntervalDuration   = import.meta.env.VITE_BIRTHDAYS_PAGE_RELOAD_DATA_INTERVAL_MILLISECONDS   || 75000;  // Re-read data duration from environment variable or default to 75000 milliseconds (1.25 minutes)
+const reloadWindowIntervalDuration = import.meta.env.VITE_BIRTHDAYS_PAGE_RELOAD_WINDOW_INTERVAL_MILLISECONDS || 75000;  // Reload window duration from environment variable or default to 75000 milliseconds (1.25 minutes)
+const birthdaysDataFileName        = import.meta.env.VITE_BIRTHDAYS_DATA_FILE_NAME                           || "birthdays.csv";  // File name of the csv birthdays data file
 
-// Re-read data duration from environment variable or default to 75000 milliseconds (1.25 minutes)
-const reloadIntervalDuration = import.meta.env.VITE_BIRTHDAYS_PAGE_RELOAD_DATA_INTERVAL_MILLISECONDS || 75000;
-
-const birthdaysDataFileName = import.meta.env.VITE_BIRTHDAYS_DATA_FILE_NAME || "birthdays.csv";
 
 function App() {
   const isLoggedIn = true; // TODO: Make a simple login
@@ -90,23 +89,33 @@ function App() {
   useEffect(() => {
     getBirthdayList(); // initial read of data
 
+	// Prints
     console.log("switchIntervalDuration=" + switchIntervalDuration);
-    console.log("reloadIntervalDuration=" + reloadIntervalDuration);
+    console.log("reloadDataIntervalDuration=" + reloadDataIntervalDuration);
+    console.log("reloadWindowIntervalDuration=" + reloadWindowIntervalDuration);
+	
     // Auto switch the view between "Dashboard" and "Birthdays" every $switchIntervalDuration milliseconds
     const switchIntervalId = setInterval(() => {
       switchView();
     }, switchIntervalDuration);
 
-    // Reload the page every reloadIntervalDuration milliseconds
-    const reloadIntervalId = setInterval(() => {
+    // Reload the data every reloadDataIntervalDuration milliseconds
+    const reloadDataIntervalId = setInterval(() => {
 	  console.log("Reloading data from file: " + birthdaysDataFileName);
       getBirthdayList();
-    }, reloadIntervalDuration);
+    }, reloadDataIntervalDuration);
+	
+    // Reload the page every reloadWindowIntervalDuration milliseconds
+    const reloadWindowIntervalId = setInterval(() => {
+	  console.log("Reloading window ..");
+      window.location.reload();
+    }, reloadWindowIntervalDuration);
 
     // Clear the intervals on component unmount to prevent memory leaks
     return () => {
       clearInterval(switchIntervalId);
-      clearInterval(reloadIntervalId);
+      clearInterval(reloadDataIntervalId);
+      clearInterval(reloadWindowIntervalId);
     };
   }, [isLoggedIn]);
 
