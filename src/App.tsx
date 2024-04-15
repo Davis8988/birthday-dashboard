@@ -12,8 +12,13 @@ interface Birthday {
   date: string;
 }
 
-// Read interval duration from environment variable or default to 30000 milliseconds
-const switchIntervalDuration = import.meta.env.BIRTHDAYS_PAGE_SWITCH_INTERVAL_DURATION || 30000;
+// Read switch view interval duration from environment variable or default to 60000 milliseconds (1 minute)
+const switchIntervalDuration = import.meta.env.VITE_BIRTHDAYS_PAGE_SWITCH_VIEW_INTERVAL_MILLISECONDS || 60000;
+
+// Re-read data duration from environment variable or default to 75000 milliseconds (1.25 minutes)
+const reloadIntervalDuration = import.meta.env.VITE_BIRTHDAYS_PAGE_RELOAD_DATA_INTERVAL_MILLISECONDS || 75000;
+
+const birthdaysDataFileName = import.meta.env.VITE_BIRTHDAYS_DATA_FILE_NAME || "birthdays.csv";
 
 function App() {
   const isLoggedIn = true; // TODO: Make a simple login
@@ -25,12 +30,12 @@ function App() {
   });
 
   const getBirthdayList = async () => {
-	console.log("");
-	console.log("-== Read birthdays routine ==-");
-    console.log("Attempting to read file: birthdays.csv");
+    console.log("");
+    console.log("-== Read birthdays routine ==-");
+    console.log("Attempting to read file: " + birthdaysDataFileName);
     try {
       // Read the contents of the CSV file
-      fetch("birthdays.csv")
+      fetch(birthdaysDataFileName)
         .then((res) => res.text())
         .then((csvData) => {
           // Convert CSV data to an array of objects (assuming CSV structure)
@@ -38,9 +43,9 @@ function App() {
           console.log("Read lines:");
           console.log(lines);
           const headers = lines[0].split(","); // <-- Assuming first line is the headers
-	      console.log("Headers: " + headers);
+          console.log("Headers: " + headers);
           const birthdays: Birthday[] = [];
-		  console.log("Reading rest of the lines");
+          console.log("Reading rest of the lines");
           for (let i = 1; i < lines.length; i++) {
             var line = lines[i];
             if (!line) {
@@ -67,13 +72,13 @@ function App() {
             }
             birthdays.push(birthday);
           }
-		  
-		  console.log("OK - Finished reading all lines");
-		  console.log("Constructed birthdays objects array:");
+
+          console.log("OK - Finished reading all lines");
+          console.log("Constructed birthdays objects array:");
           console.log({ birthdays });
-          
-		  // Set birthdays state or perform further processing
-		  console.log("Saving results in memory");
+
+          // Set birthdays state or perform further processing
+          console.log("Saving results in memory");
           setBirthdays(birthdays);
         })
         .catch((e) => console.error(e));
@@ -83,16 +88,26 @@ function App() {
   };
 
   useEffect(() => {
-    getBirthdayList();
-	
-	console.log("switchIntervalDuration=" + switchIntervalDuration);
-    // Auto switch the view between "Dashboard" and "Birthdays" every SWITCH_INTERVAL_DURATION milliseconds
-    const intervalId = setInterval(() => {
+    getBirthdayList(); // initial read of data
+
+    console.log("switchIntervalDuration=" + switchIntervalDuration);
+    console.log("reloadIntervalDuration=" + reloadIntervalDuration);
+    // Auto switch the view between "Dashboard" and "Birthdays" every $switchIntervalDuration milliseconds
+    const switchIntervalId = setInterval(() => {
       switchView();
     }, switchIntervalDuration);
 
-    // Clear the interval on component unmount to prevent memory leaks
-    return () => clearInterval(intervalId);
+    // Reload the page every reloadIntervalDuration milliseconds
+    const reloadIntervalId = setInterval(() => {
+	  console.log("Reloading data from file: " + birthdaysDataFileName);
+      getBirthdayList();
+    }, reloadIntervalDuration);
+
+    // Clear the intervals on component unmount to prevent memory leaks
+    return () => {
+      clearInterval(switchIntervalId);
+      clearInterval(reloadIntervalId);
+    };
   }, [isLoggedIn]);
 
   // Function to switch the current view between "Dashboard" and "Birthdays"
