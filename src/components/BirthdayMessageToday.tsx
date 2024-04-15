@@ -1,4 +1,5 @@
 import moment from "moment";
+import "./BirthdayMessageToday.css"; // Import CSS file for additional styles
 
 interface Birthday {
   id: string;
@@ -39,8 +40,8 @@ export const BirthdayMessageToday = ({ birthdays, today, loggedIn }: Props) => {
   const noBirthdaysToday = (
     <ul className="list-group">
       <li className="list-group-item">
-        <h1 className="display-5 text-center set-birthdays-alert">
-          No birthdays today.
+        <h1 className="display-5 text-center set-no-birthdays-alert">
+          <strong>No birthdays today.</strong>
         </h1>
       </li>
     </ul>
@@ -48,11 +49,9 @@ export const BirthdayMessageToday = ({ birthdays, today, loggedIn }: Props) => {
 
   const birthdayMessages = todayBirthdays.map((person) => (
     <ul key={person.id} className="list-group">
-      <li key={person.id} className="list-group-item">
+      <li key={person.id} className="alert alert-success" role="alert">
         <h1 className="display-5 text-center">
-          {person.personName} turns{" "}
-          {parseInt(today.slice(0, 4)) - parseInt(person.date.slice(0, 4))}{" "}
-          today!
+        <strong>{person.personName}</strong> has a birthday today!  🎈🎉🎂
         </h1>
       </li>
     </ul>

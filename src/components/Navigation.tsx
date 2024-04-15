@@ -29,7 +29,7 @@ const Navigation = ({ currentView, onSelectView, loggedIn }: Props) => {
             </button>
             <button
               className={
-                currentView === "Configuration" ? "nav-link active" : "nav-link"
+                currentView === "Birthdays" ? "nav-link active" : "nav-link"
               }
               id="nav-profile-tab"
               data-bs-toggle="tab"
@@ -38,7 +38,7 @@ const Navigation = ({ currentView, onSelectView, loggedIn }: Props) => {
               role="tab"
               aria-controls="nav-profile"
               aria-selected="false"
-              onClick={() => onSelectView("Configuration")}
+              onClick={() => onSelectView("Birthdays")}
             >
               Birthdays
             </button>
@@ -53,9 +53,9 @@ const Navigation = ({ currentView, onSelectView, loggedIn }: Props) => {
               role="tab"
               aria-controls="nav-profile"
               aria-selected="false"
-              onClick={() => onSelectView("Account")}
+              onClick={() => onSelectView("UpdateData")}
             >
-              Account
+              Update Data
             </button>
           </div>
         </nav>

@@ -27,9 +27,7 @@ export const BirthdayMessageUpcoming = ({ birthdays, today }: Props) => {
       <ul key={person.id} className="list-group">
         <li key={person.id} className="list-group-item">
           <h3 className="display-5 text-center">
-            {person.personName} turns{" "}
-            {parseInt(today.slice(0, 4)) - parseInt(person.date.slice(0, 4))} on
-            the {moment(person.date).format("Do")}
+          {person.personName}'s birthday is on {moment(person.date).format("Do")}
           </h3>
         </li>
       </ul>

@@ -1,0 +1,43 @@
+version: '2.0'
+
+# If getting an error: TypeError: kwargs_from_env() got an unexpected keyword argument 'ssl_version' in GitLab
+#  Then solution is here: https://stackoverflow.com/questions/77641240/getting-docker-compose-typeerror-kwargs-from-env-got-an-unexpected-keyword-ar
+# I got it to work by reverting the suggested change in the utils.py i.e. sudo nano ./usr/local/lib/python3.9/dist-packages/docker/utils/utils.py
+#
+# Finding: def kwargs_from_env(environment=None):(See file docker/utils/utils.py line 344)
+#
+# and adding: def kwargs_from_env(environment=None, ssl_version=None)
+
+networks:
+  birthdays-page-net:
+    driver: bridge
+
+services:
+  birthdays-page:
+    image: artifactory.esl.corp.elbit.co.il/aerospace-simulators-devops-docker/birthdays-page-nodejs-14:1.0.1
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    container_name: birthdays-page
+    volumes:
+      - ./data:/app/data
+    restart: always
+    ports:
+      - "4123:4123"
+    healthcheck:
+      test: ["CMD", "curl", "-s", "-k", "--fail", "http://localhost:4123/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - birthdays-page-net
+    environment:
+      # BIRTHDAYS_SERVER_HOST: "127.0.0.1"
+      BIRTHDAYS_SERVER_HOST: "0.0.0.0"  # <-- Open for everyone
+      BIRTHDAYS_SERVER_PORT: "4123"
+      VITE_BIRTHDAYS_PAGE_SWITCH_VIEW_INTERVAL_MILLISECONDS: "60000"  # Switch view every 1 minute
+      VITE_BIRTHDAYS_PAGE_RELOAD_DATA_INTERVAL_MILLISECONDS: "10000"  # Reload data every 10 seconds
+      VITE_BIRTHDAYS_PAGE_RELOAD_WINDOW_INTERVAL_MILLISECONDS: "300000"  # Reload whole window every 5 minutes
+      VITE_BIRTHDAYS_DATA_FILE_NAME: "birthdays.csv"

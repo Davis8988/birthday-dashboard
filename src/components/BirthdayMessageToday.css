@@ -1,0 +1,75 @@
+ul {
+  list-style-type: none;  /* <-- Eliminate the bullet * from the listings */
+}
+.set-no-birthdays-alert {
+  color: rgb(255, 141, 1);
+  font-weight: 200;
+}
+
+.birthday-messages {
+  margin-top: 20px;
+}
+
+.alert {
+  margin-bottom: 20px;
+  border-radius: 10px;
+  /* animation: slideIn 2.0s ease; */
+  /* animation: fadeIn 3.5s ease; */
+  animation: bounceIn 2.0s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+}
+
+/* Rainbow gradient colors */
+.alert-success {
+  background: linear-gradient(45deg, #ff2400, #e81d1d, #e8b71d, #e3e81d, #1de840, #1ddde8, #1d3ce8);
+  border-color: #c3e6cb;
+}
+
+.alert-info {
+  background: linear-gradient(45deg, #1d3ce8, #1d8ce8, #1de8b7, #1de89e, #1de8b7, #1ddde8, #1d3ce8);
+  border-color: #bee5eb;
+}
+
+.alert-warning {
+  background: linear-gradient(45deg, #1ddde8, #1d8ce8, #1d3ce8, #1d3ce8, #1de8b7, #1de89e, #1de840);
+  border-color: #ffeeba;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-60px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes bounceIn {
+  0%, 100% {
+    transform: scale(0.1);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+  80% {
+    transform: scale(0.9);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}

@@ -1,0 +1,259 @@
+import org.jenkinsci.plugins.pipeline.modeldefinition.Utils
+
+/* Load job properties lib */
+@Library("properties-lib@master")_
+
+env.credsId         = properties_sharedConf.ELBIT_NT_GENERIC_USER_JENKINS_CREDS_ID
+env.genericUserName = properties_sharedConf.ELBIT_NT_GENERIC_USER_NAME
+
+/* Project & Workspace Paths */
+env.PROJ_NAME="SimConfig-Client"
+env.PROJ_NAME_Lowered=env.PROJ_NAME.toLowerCase()
+env.GITLAB_REPO_URL="http://${properties_sharedConf.GITLAB_IP}/devops_simulators/simconfig-client.git"
+
+properties([
+	buildDiscarder(logRotator(artifactDaysToKeepStr: '', artifactNumToKeepStr: '', daysToKeepStr: '16', numToKeepStr: '20')),
+	disableResume(),
+	pipelineTriggers([
+		parameterizedCron("H 4 * * 0-5")
+	]),
+	parameters([
+			properties_GetJobParam_GitSingleBrancheTagChoosing(PARAM_NAME: properties_sharedConf.JENKINS_PIPELINE_REPO_PARAM_NAME, PARAM_DESCRIPTION: "Branch of jenkins pipeline file to execute", REPO_URLS_TO_SEARCH_AT_STR: env.GITLAB_REPO_URL,   DEFAULT_CHOICE: "master"),
+			properties_GetJobParam_GitSingleBrancheTagChoosing(PARAM_NAME: properties_sharedConf.JENKINS_SHARED_LIB_REPO_PARAM_NAME, PARAM_DESCRIPTION: "Branch of groovy shared library repo	", REPO_URLS_TO_SEARCH_AT_STR: properties_sharedConf.JENKINS_SHARED_LIB_REPO_URL, DEFAULT_CHOICE: properties_sharedConf.JENKINS_SHARED_LIB_REPO_PARAM_DEFAULT_BRANCH),
+			properties_GetJobParam_GitSingleBrancheTagChoosing(PARAM_NAME: "PROJECT_SETUP_BRANCH", PARAM_DESCRIPTION: "Branch of projects setups repo	", REPO_URLS_TO_SEARCH_AT_STR: properties_sharedConf.DEVOPS_PROJECT_SETUPS_REPO_URL, DEFAULT_CHOICE: properties_sharedConf.DEVOPS_PROJECT_SETUPS_REPO_DEFAULT_BRANCH),
+			booleanParam(name: 'RELOAD_UI',                 defaultValue: false,    description: 'Reloads the jenkins web ui interface'),
+			properties_GetJobParam_ParamsSeparator("Version"),
+			properties_GetJobParam_ReleaseVersionCheckbox(PARAM_DESCRIPTION: "Release version of ${PROJ_NAME}"),
+			properties_GetJobParam_Artifactory_RpmPkgSingleVersionChoosing(PARAM_NAME: "BUILD_VERSION", REPOS_NAMES_TO_SEARCH_STR: properties_sharedConf.ARTIFACTORY_RPM_REPO_RELEASE, PKGS_NAMES_CHOOSING_STR: env.PROJ_NAME_Lowered, PARAM_CLASS: "ExtensibleChoiceParameterDefinition", SORT_RESULTS: true),
+			properties_GetJobParam_ParamsSeparator("Build"),
+			booleanParam(name: 'GET_LATEST',     			defaultValue: true,   description: 'Get Latest Configuration from the Repo' ),
+			booleanParam(name: 'PIP_INSTALL_REQUIREMENTS',  defaultValue: true,   description: "Executes: pip install -r requirements.txt" ),
+			booleanParam(name: 'BUILD_EXE',     			defaultValue: true,   description: "Builds the ${PROJ_NAME} executable from sources" ),
+			booleanParam(name: 'PACK_RPM',     			    defaultValue: true,   description: "Packs ${PROJ_NAME} executable into an rpm pkg and uploads to Artifactory" ),
+			booleanParam(name: 'DEBUG_CONTAINER',  		    defaultValue: false,  description: 'Keep the building container running for debug' ),
+			properties_GetJobParam_ParamsSeparator("Team"),
+			string(name: 'TEAM_MAIL_ADDRESSES', 	  	    defaultValue: 'david.yair@elbitsystems.com', description: 'Mail these on failure' )
+		])
+])
+
+// Check if was started by a gitlab push hook
+if (isStartedByGitlabHook()) {
+	env.CURRENT_GITLAB_STEP = "Waiting for slave node"
+	printStartedByHookInfo()
+	updateEnvsWithGitlabHookEnvs()
+}
+
+
+if (env.RELOAD_UI.toBoolean()) {print "Reloading UI and finishing"; return}
+
+// Load shared lib
+library "jenkins-shared-lib@${SHARED_LIB_BRANCH}"
+
+env.nodeContainerName = "rhel-74-python-3-8-18"  // Image: artifactory.esl.corp.elbit.co.il/aerospace-simulators-devops-docker/jenkins/jenkins-slave:rhel-74-python-3.8.18
+
+timestamps {
+	updateGitlabCommitStatus name: env.CURRENT_GITLAB_STEP, state: 'pending'
+	podTemplate() {
+		node("k8-${nodeContainerName}") {
+			container("${nodeContainerName}") {
+				updateGitlabCommitStatus name: env.CURRENT_GITLAB_STEP, state: 'success'
+				
+				/* Build Vars - DO NOT CHANGE */
+				currentBuild.result = 'SUCCESS'
+				RUN_CONTAINER_AND_HEALTH_CHECK_TIMEOUT_MINUTES = 15
+				env.BUILT_IMAGE = false
+				env.NIMBUS_SWARM_REMOTE_API_PORT=2375
+				
+				try {
+					
+					stage('Get Latest') {
+						if(! env.GET_LATEST.toBoolean()) {skipStage(); return}
+						env.CURRENT_GITLAB_STEP = 'Get Latest'
+						updateGitlabCommitStatus name: env.CURRENT_GITLAB_STEP, state: 'pending'
+						cloneRepo()
+						updateGitlabCommitStatus name: env.CURRENT_GITLAB_STEP, state: 'success'
+					}
+
+					setEnvs()
+					
+					stage('Pip Install Requirements') {
+						if(! env.PIP_INSTALL_REQUIREMENTS.toBoolean()) {skipStage(); return}
+						env.CURRENT_GITLAB_STEP = 'Pip Install Requirements'
+						updateGitlabCommitStatus name: env.CURRENT_GITLAB_STEP, state: 'pending'
+						pipInstallRequirements()
+						updateGitlabCommitStatus name: env.CURRENT_GITLAB_STEP, state: 'success'
+					}
+
+					stage('Build Exe') {
+						if(! env.BUILD_EXE.toBoolean()) {skipStage(); return}
+						env.CURRENT_GITLAB_STEP = 'Build Exe'
+						updateGitlabCommitStatus name: env.CURRENT_GITLAB_STEP, state: 'pending'
+						buildExe()
+						updateGitlabCommitStatus name: env.CURRENT_GITLAB_STEP, state: 'success'
+					}
+
+					stage('Pack RPM') {
+						if(! env.PACK_RPM.toBoolean()) {skipStage(); return}
+						env.CURRENT_GITLAB_STEP = 'Pack RPM'
+						updateGitlabCommitStatus name: env.CURRENT_GITLAB_STEP, state: 'pending'
+						packRpm()
+						updateGitlabCommitStatus name: env.CURRENT_GITLAB_STEP, state: 'success'
+					}
+					
+				} catch(e) {
+					currentBuild.result = 'FAILURE'
+					sendFailureMail(e)
+					if (env.CURRENT_GITLAB_STEP) {updateGitlabCommitStatus name: env.CURRENT_GITLAB_STEP, state: 'failed'}
+				} finally {
+					if (env.DEBUG_CONTAINER.toBoolean() == true) {debugContainer()}
+				}
+			}
+
+		}
+	}
+}
+
+boolean isStartedByGitlabHook() {
+	return (env.gitlabMergeRequestId) ? true : false
+}
+
+
+/**
+Gitlab Hook Envs Example:
+gitlabActionType=MERGE
+gitlabBranch=jenkinsfile
+gitlabMergeRequestId=13974
+gitlabMergeRequestIid=17
+gitlabMergeRequestLastCommit=77eccb068d301653bb371526a5e657742850a7f0
+gitlabMergeRequestState=opened
+gitlabMergeRequestTargetProjectId=3509
+gitlabMergeRequestTitle=Jenkinsfile
+gitlabMergedByUser=DP99662
+gitlabSourceBranch=jenkinsfile
+gitlabSourceNamespace=devops_simulators
+gitlabSourceRepoHomepage=http://gitlab/devops_simulators/golang-artifacts-syncher
+gitlabSourceRepoHttpUrl=http://gitlab/devops_simulators/golang-artifacts-syncher.git
+gitlabSourceRepoName=Golang Artifacts Syncher
+gitlabSourceRepoSshUrl=git@gitlab:devops_simulators/golang-artifacts-syncher.git
+gitlabSourceRepoURL=git@gitlab:devops_simulators/golang-artifacts-syncher.git
+gitlabTargetBranch=main
+gitlabTargetNamespace=devops_simulators
+gitlabTargetRepoHttpUrl=http://gitlab/devops_simulators/golang-artifacts-syncher.git
+gitlabTargetRepoName=Golang Artifacts Syncher
+gitlabTargetRepoSshUrl=git@gitlab:devops_simulators/golang-artifacts-syncher.git
+gitlabUserEmail=david.yair@elbitsystems.com
+gitlabUserName=e030331
+*/
+def printStartedByHookInfo() {
+	String hookMsg = "Started by a gitlab hook\n"
+	hookMsg += "- Repo name: ${env.gitlabSourceRepoName}\n"
+	hookMsg += "- Repo url: ${env.gitlabSourceRepoHomepage}\n"
+	hookMsg += "- Source branch: ${env.gitlabSourceBranch}\n"
+	hookMsg += "- Target branch: ${env.gitlabTargetBranch}\n"
+	hookMsg += "- Gitlab user name: ${env.gitlabUserName}\n"
+	hookMsg += "- Gitlab user email: ${env.gitlabUserEmail}\n"
+	hookMsg += "- Commit msg: ${env.gitlabMergeRequestLastCommit}\n"
+	println hookMsg
+}
+
+void updateEnvsWithGitlabHookEnvs() {
+	env.PIPELINE_BRANCH = env.gitlabSourceBranch
+}
+
+def cloneRepo() {
+	git_functions.clone(
+		REPO_URL      : env.GITLAB_REPO_URL,
+		CLONE_BRANCH  : PIPELINE_BRANCH,
+		CREDENTIALS_ID: sharedConf.ELBIT_NT_GENERIC_USER_JENKINS_CREDS_ID,
+		// TARGET_DIR: SOURCES_DIR, // <-- Not specifying 'TARGET_DIR' clones the repo to the Jenkins' workspace
+	)
+	if (isStartedByGitlabHook() && env.gitlabTargetBranch) {
+		println "Started by a gitlab hook - attempting to merge with branch: ${env.gitlabTargetBranch}"
+		sh """
+			echo Merging cloned branch: ${PIPELINE_BRANCH} with: ${env.gitlabTargetBranch}
+			git checkout ${env.gitlabTargetBranch} -- || exit 1
+			git checkout ${PIPELINE_BRANCH} -- || exit 1
+			git merge --no-edit ${env.gitlabTargetBranch}
+		"""
+	}
+}
+
+void setEnvs() {
+	env.DOCKER_REGISTERY_HOSTNAME=sharedConf.ARTIFACTORY_HOST_NAME
+	env.SYNCHER_DOCKER_IMAGE_NAME="${DOCKER_REGISTERY_HOSTNAME}/${env.USED_DOCKER_REPO}/golang/artifacts-syncher/go-1.18-alpine"
+	env.SYNCHER_DOCKER_IMAGE_FULL_NAME="${SYNCHER_DOCKER_IMAGE_NAME}:${env.SYNCHER_BUILD_VERSION}"
+	env.CLEAN_DOCKER_IMAGES_REPO_URL = "http://${DOCKER_REGISTERY_HOSTNAME}/artifactory/api/docker/${env.USED_DOCKER_REPO}/v2/golang/artifacts-syncher/go-1.18-alpine/tags/list"		
+}
+
+void pipInstallRequirements() {
+	println "Starting Pip Install Requirements step"
+	sh """
+	echo PWD=\$(pwd)
+	echo ls -l
+	ls -l
+	echo Executing: pip install -r requirements.txt
+	pip install -r requirements.txt
+	"""
+	println "Success - Finished Pip Install Requirements step"
+}
+
+void buildExe() {
+	println "Starting Build Exe step"
+	sh """
+		echo "Executing: isSilent=true ./scripts/pyinstaller-compile-exe.sh "
+		isSilent=true ./scripts/pyinstaller-compile-exe.sh || exit 1
+		echo ""
+		echo "Validating build was successful"
+		echo "Executing: ./scripts/bin/simconfig-client --help"
+		./scripts/bin/simconfig-client --help && echo OK && echo Build was successful
+	"""
+	println "Success - Finished Build Exe step"
+}
+
+void packRpm() {
+	println "Starting Pack Rpm step"
+	withCredentials([conjurSecretCredential(credentialsId:credsId, variable:'SECRET')]){	
+		String exePath = joinPath(env.WORKSPACE, 'scripts/bin/simconfig-client')
+		sh """
+			echo "Preparing files to pack"
+			install -v -m 755 "${exePath}" /usr/local/bin
+		"""
+		def rpmArgs = [
+			PACKAGE_NAME              : "simconfig-client",
+			PACKAGE_VERSION           : env.BUILD_VERSION,
+			// PACKAGE_RELEASE           : env.BUILD_ID,
+			PACKAGE_PATH_TO_PACK      : "/usr/local/bin/simconfig-client",
+			PACKAGE_SPECIAL_ENV_NAME  : "SIMCONFIG_CLIENT_PATH",
+			RPM_REPO_DIR              : 'onesim',
+			USER_NAME_TO_USE          : env.genericUserName,
+			PASS_TO_USE               : env.SECRET,
+			RELEASE                   : env.RELEASE_VERSION.toBoolean(),  // <-- Upload to rpm releases or integ repo
+			RETENTION_COUNT           : 5, // Let there be only last 5 versoins
+			CLONE_DEVOPS_PROJECT_SETUPS_REPO_CLONE_BRANCH: env.PROJECT_SETUP_BRANCH
+		]
+		
+		rpm.packUploadAndCleanProjectPkg(rpmArgs)  // Pack, upload & Remove old pkgs  all in one :)
+	}
+	println "Success - Finished Pack Rpm step"
+}
+
+def sendFailureMail(error) {
+	print "Error of this build: ${error}"
+	
+	env.MAIL_TO="${env.TEAM_MAIL_ADDRESSES}"
+	
+	
+	echo "Build Failed - Sending failure mail"
+	env.MAIL_URL_LINKS="Console Log Link: "+env.BUILD_URL.toString() +"console<br><br>Job URL{to start a new build}: "+env.JOB_URL.toString() + "<br><br>Changes From Last Build: "+env.RUN_CHANGES_DISPLAY_URL.toString()
+	env.MAIL_COMPUTER_DETAILS="Computer Building: "+env.hostname.toString()
+	
+	env.MAIL_BODY="<pre>Failed building job "+env.JOB_BASE_NAME.toString()+"<br><br>Error of This Build: <br>" +error.toString()+ "<br>For more information look in attached console-log zip<br><br>Links: <br>"+env.MAIL_URL_LINKS.toString() +" <br><br>Details: <br>"+env.MAIL_COMPUTER_DETAILS.toString()+"<br><br>------------------------------------------------------------------------------<br><br>Your beloved Jenkins</pre>"
+	env.MAIL_SUBJECT=env.JOB_BASE_NAME+" - Build Failed"
+	
+	emailext attachLog: true, body: env.MAIL_BODY, compressLog: true, recipientProviders: [[$class: 'RequesterRecipientProvider']], subject: env.MAIL_SUBJECT, to: env.MAIL_TO
+}
+
+void debugContainer() {
+	println "\nkex -n jenkins ${env.HOSTNAME} -c ${nodeContainerName} -- bash\n"
+	input("Click 'proceed' when finished debugging..")
+}
