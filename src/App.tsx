@@ -77,7 +77,10 @@ function App() {
         currentView={currentView}
         onSelectView={setCurrentView}
       />
-      {currentView === "Configuration" && (
+      {currentView === "Dashboard" && (
+        <Dashboard loggedIn={isLoggedIn} birthdays={birthdays} />
+      )}
+	  {currentView === "Birthdays" && (
         <>
           <div className="birthday-form">
             <BirthdayForm
@@ -91,9 +94,6 @@ function App() {
             )}
           </div>
         </>
-      )}
-      {currentView === "Dashboard" && (
-        <Dashboard loggedIn={isLoggedIn} birthdays={birthdays} />
       )}
       {currentView === "UpdateData" && (
         <>
