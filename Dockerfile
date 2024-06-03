@@ -1,5 +1,4 @@
 # Use a specific version of Node.js
-#FROM artifactory.esl.corp.elbit.co.il/docker/node:14
 FROM node:14
 
 # Set the working directory

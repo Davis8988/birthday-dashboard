@@ -5,7 +5,7 @@ Present upcoming birthdays in an HTML dashboard page
 ## Build
 
 ```bash
-git clone http://gitlab.esl.corp.elbit.co.il/DP99662/birthdays-page.git
+git clone https://github.com/Davis8988/birthday-dashboard.git
 cd birthdays-page
 npm install
 ```
@@ -41,7 +41,7 @@ npm run dev
 * <u>Run Image</u>
 
   ```bash
-  docker run -d --name birthdays-page -p 4123:4123 -e BIRTHDAYS_SERVER_HOST="0.0.0.0" -e BIRTHDAYS_SERVER_PORT=4123 artifactory.esl.corp.elbit.co.il/aerospace-simulators-devops-docker/birthdays-page-nodejs:14
+docker run -d --name birthdays-page -p 4123:4123 -e BIRTHDAYS_SERVER_HOST="0.0.0.0" -e BIRTHDAYS_SERVER_PORT=4123 davis8988/birthdays-page-nodejs-14:1.0.3
   
   # Expected container output:
   # 

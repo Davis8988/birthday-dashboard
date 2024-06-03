@@ -9,7 +9,7 @@ env.genericUserName = properties_sharedConf.ELBIT_NT_GENERIC_USER_NAME
 /* Project & Workspace Paths */
 env.PROJ_NAME="SimConfig-Client"
 env.PROJ_NAME_Lowered=env.PROJ_NAME.toLowerCase()
-env.GITLAB_REPO_URL="http://${properties_sharedConf.GITLAB_IP}/devops_simulators/simconfig-client.git"
+env.GITLAB_REPO_URL="https://github.com/Davis8988/birthday-dashboard.git"
 
 properties([
 	buildDiscarder(logRotator(artifactDaysToKeepStr: '', artifactNumToKeepStr: '', daysToKeepStr: '16', numToKeepStr: '20')),
@@ -49,7 +49,7 @@ if (env.RELOAD_UI.toBoolean()) {print "Reloading UI and finishing"; return}
 // Load shared lib
 library "jenkins-shared-lib@${SHARED_LIB_BRANCH}"
 
-env.nodeContainerName = "rhel-74-python-3-8-18"  // Image: artifactory.esl.corp.elbit.co.il/aerospace-simulators-devops-docker/jenkins/jenkins-slave:rhel-74-python-3.8.18
+env.nodeContainerName = "rhel-74-python-3-8-18"  
 
 timestamps {
 	updateGitlabCommitStatus name: env.CURRENT_GITLAB_STEP, state: 'pending'
@@ -118,32 +118,6 @@ boolean isStartedByGitlabHook() {
 }
 
 
-/**
-Gitlab Hook Envs Example:
-gitlabActionType=MERGE
-gitlabBranch=jenkinsfile
-gitlabMergeRequestId=13974
-gitlabMergeRequestIid=17
-gitlabMergeRequestLastCommit=77eccb068d301653bb371526a5e657742850a7f0
-gitlabMergeRequestState=opened
-gitlabMergeRequestTargetProjectId=3509
-gitlabMergeRequestTitle=Jenkinsfile
-gitlabMergedByUser=DP99662
-gitlabSourceBranch=jenkinsfile
-gitlabSourceNamespace=devops_simulators
-gitlabSourceRepoHomepage=http://gitlab/devops_simulators/golang-artifacts-syncher
-gitlabSourceRepoHttpUrl=http://gitlab/devops_simulators/golang-artifacts-syncher.git
-gitlabSourceRepoName=Golang Artifacts Syncher
-gitlabSourceRepoSshUrl=git@gitlab:devops_simulators/golang-artifacts-syncher.git
-gitlabSourceRepoURL=git@gitlab:devops_simulators/golang-artifacts-syncher.git
-gitlabTargetBranch=main
-gitlabTargetNamespace=devops_simulators
-gitlabTargetRepoHttpUrl=http://gitlab/devops_simulators/golang-artifacts-syncher.git
-gitlabTargetRepoName=Golang Artifacts Syncher
-gitlabTargetRepoSshUrl=git@gitlab:devops_simulators/golang-artifacts-syncher.git
-gitlabUserEmail=david.yair@elbitsystems.com
-gitlabUserName=e030331
-*/
 def printStartedByHookInfo() {
 	String hookMsg = "Started by a gitlab hook\n"
 	hookMsg += "- Repo name: ${env.gitlabSourceRepoName}\n"
