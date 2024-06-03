@@ -15,8 +15,87 @@ interface Birthday {
 // Global Vars
 const switchIntervalDuration       = import.meta.env.VITE_BIRTHDAYS_PAGE_SWITCH_VIEW_INTERVAL_MILLISECONDS   || 60000;  // Read switch view interval duration from environment variable or default to 60000 milliseconds (1 minute)
 const reloadDataIntervalDuration   = import.meta.env.VITE_BIRTHDAYS_PAGE_RELOAD_DATA_INTERVAL_MILLISECONDS   || 75000;  // Re-read data duration from environment variable or default to 75000 milliseconds (1.25 minutes)
+// const reloadDataIntervalDuration   = import.meta.env.VITE_BIRTHDAYS_PAGE_RELOAD_DATA_INTERVAL_MILLISECONDS   || 10000;  // Re-read data duration from environment variable or default to 75000 milliseconds (1.25 minutes)
 const reloadWindowIntervalDuration = import.meta.env.VITE_BIRTHDAYS_PAGE_RELOAD_WINDOW_INTERVAL_MILLISECONDS || 75000;  // Reload window duration from environment variable or default to 75000 milliseconds (1.25 minutes)
-const birthdaysDataFileName        = import.meta.env.VITE_BIRTHDAYS_DATA_FILE_NAME                           || "birthdays.csv";  // File name of the csv birthdays data file
+const showUpdateBirthdaysListForMilliseconds = import.meta.env.VITE_BIRTHDAYS_PAGE_SHOW_UPDATE_BIRTHDAYS_LIST_FOR_MILLISECONDS || 15000;  // Show the update Birthdays toast notification for this amount of milliseconds or default to 15 seconds
+const birthdaysDataFilePath        = import.meta.env.VITE_BIRTHDAYS_DATA_FILE_PATH                           || "./data/birthdays.csv";  // File name of the csv birthdays data file
+
+// Global variable to contain the current last read birthdays from the file
+let currentBirthdaysArr: Birthday[] = [];
+
+function printBirthdaysArr(birthdays: Birthday[]): void {
+  birthdays.forEach((birthday, index) => {
+      console.log(` - ID: ${birthday.id}, Name: ${birthday.personName}, Birthday: ${birthday.date}`);
+  });
+}
+
+function showChangesBanner(addedBirthdays: Birthday[], removedBirthdays: Birthday[]) {
+  let bannerMessage = "";
+  if (addedBirthdays.length > 0) {
+    bannerMessage += `<br>Added (${addedBirthdays.length}):<br>`;
+    addedBirthdays.forEach(birthday => {
+      bannerMessage += `  &nbsp;&nbsp;&nbsp; Name: &nbsp;${birthday.personName} &nbsp;&nbsp;&nbsp;&nbsp;     Birthday: ${birthday.date}<br>`;
+    });
+  }
+  if (removedBirthdays.length > 0) {
+    bannerMessage += `<br>Removed (${removedBirthdays.length}):<br>`;
+    removedBirthdays.forEach(birthday => {
+      bannerMessage += `  &nbsp;&nbsp;&nbsp; Name: &nbsp;${birthday.personName} <br>`;
+    });
+  }
+  if (bannerMessage.length === 0) {return}
+  bannerMessage = `== Birthdays List Updated == <br>` + bannerMessage;
+  bannerMessage += `<br>`;
+  console.log(`Showing toast for ${showUpdateBirthdaysListForMilliseconds} millisec`);
+  console.log(bannerMessage);
+  showToast(bannerMessage);
+}
+
+
+
+
+
+function calculateDiff(newBirthdays: Birthday[], oldBirthdays: Birthday[]): { addedBirthdays: Birthday[], removedBirthdays: Birthday[] } {
+  const addedBirthdays: Birthday[] = [];
+  const removedBirthdays: Birthday[] = [];
+
+  // Find added birthdays
+  newBirthdays.forEach(newBirthday => {
+    if (!oldBirthdays.some(oldBirthday => oldBirthday.personName === newBirthday.personName)) {
+      addedBirthdays.push(newBirthday);
+    }
+  });
+
+  // Find removed birthdays
+  oldBirthdays.forEach(oldBirthday => {
+    if (!newBirthdays.some(newBirthday => newBirthday.personName === oldBirthday.personName)) {
+      removedBirthdays.push(oldBirthday);
+    }
+  });
+
+  return { addedBirthdays, removedBirthdays };
+}
+
+function showToast(message: string) {
+  const toastContainer = document.getElementById("toast-container");
+  if (toastContainer) {
+    const toast = document.createElement("div");
+    toast.classList.add("toast");
+    toast.innerHTML = message;
+    toastContainer.appendChild(toast);
+
+    // Remove the toast after 7 seconds
+    setTimeout(() => {
+      toast.remove();
+    }, showUpdateBirthdaysListForMilliseconds);
+
+    // Set timeout to ensure toast is added to the DOM before showing
+    setTimeout(() => {
+      toast.classList.add("show");
+    }, 100); // Adjust delay if necessary
+  }
+}
+
 
 
 function App() {
@@ -31,10 +110,10 @@ function App() {
   const getBirthdayList = async () => {
     console.log("");
     console.log("-== Read birthdays routine ==-");
-    console.log("Attempting to read file: " + birthdaysDataFileName);
+    console.log("Attempting to read file: " + birthdaysDataFilePath);
     try {
       // Read the contents of the CSV file
-      fetch(birthdaysDataFileName)
+      fetch(birthdaysDataFilePath)
         .then((res) => res.text())
         .then((csvData) => {
           // Convert CSV data to an array of objects (assuming CSV structure)
@@ -79,6 +158,26 @@ function App() {
           // Set birthdays state or perform further processing
           console.log("Saving results in memory");
           setBirthdays(birthdays);
+
+          // Print lengths of new and old
+          console.log(`New birthdays count:`, birthdays.length);
+          console.log(`Old birthdays count:`, currentBirthdaysArr.length);
+          console.log("");
+          
+          // Check if currentBirthdaysArr is initialized
+          if (currentBirthdaysArr !== null && currentBirthdaysArr.length !== 0) {
+            // Calculate differences
+            const { addedBirthdays, removedBirthdays } = calculateDiff(birthdays, currentBirthdaysArr);
+            console.log(`Added birthdays (${addedBirthdays.length}):`);
+            printBirthdaysArr(addedBirthdays)
+            console.log(`Removed birthdays (${removedBirthdays.length}):`);
+            printBirthdaysArr(removedBirthdays)
+            console.log("");
+            showChangesBanner(addedBirthdays, removedBirthdays);
+          }
+
+          // Update global variable
+          currentBirthdaysArr = birthdays;
         })
         .catch((e) => console.error(e));
     } catch (err) {
@@ -89,7 +188,7 @@ function App() {
   useEffect(() => {
     getBirthdayList(); // initial read of data
 
-	// Prints
+  	// Prints
     console.log("switchIntervalDuration=" + switchIntervalDuration);
     console.log("reloadDataIntervalDuration=" + reloadDataIntervalDuration);
     console.log("reloadWindowIntervalDuration=" + reloadWindowIntervalDuration);
@@ -101,7 +200,7 @@ function App() {
 
     // Reload the data every reloadDataIntervalDuration milliseconds
     const reloadDataIntervalId = setInterval(() => {
-	  console.log("Reloading data from file: " + birthdaysDataFileName);
+	  console.log("Reloading data from file: " + birthdaysDataFilePath);
       getBirthdayList();
     }, reloadDataIntervalDuration);
 	
@@ -148,6 +247,7 @@ function App() {
         </>
       )}
       {currentView === "UpdateData" && <UpdateData />}
+      <div id="toast-container"></div>
     </>
   );
 }
